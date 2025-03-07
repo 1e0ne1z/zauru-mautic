@@ -12,7 +12,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 
 # Install any Mautic theme or plugin using Composer:
 RUN cd /var/www/html && \
-    COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_PROCESS_TIMEOUT=10000  vendor/bin/composer require chimpino/theme-air:^1.0 --no-scripts --no-interaction
+    COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_PROCESS_TIMEOUT=10000  vendor/bin/composer require pabloveintimilla/mautic-amazon-ses --no-scripts --no-interaction
 
 # Production stage:
 FROM mautic/mautic:${MAUTIC_VERSION}
