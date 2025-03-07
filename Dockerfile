@@ -17,13 +17,6 @@ RUN cd /var/www/html && \
 RUN cd /var/www/html && \
     php bin/console cache:clear
 
-RUN cd /var/www/html && \
-    php bin/console mautic:plugins:reload
-
-RUN  chown -R www-data:www-data /var/www/html/
-
-RUN  chmod -R 777 /var/www/html/ 
-
 # Production stage:
 FROM mautic/mautic:${MAUTIC_VERSION}
 
