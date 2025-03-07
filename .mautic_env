@@ -9,5 +9,6 @@ MAUTIC_DB_PASSWORD="${MYSQL_PASSWORD}"
 MAUTIC_PORT="8001"
 EMAIL_ADDRESS="leonel@zauru.com"
 
+
 MAUTIC_MESSENGER_DSN_EMAIL="doctrine://default"
 MAUTIC_MESSENGER_DSN_HIT="doctrine://default"
