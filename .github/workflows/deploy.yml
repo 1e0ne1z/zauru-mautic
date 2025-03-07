@@ -30,6 +30,15 @@ jobs:
       env:
         EMAIL_ADDRESS: ${{ vars.EMAIL_ADDRESS }}
 
+    - name: Check DOMAIN environment variable
+      run: |
+        if [ -z "${DOMAIN}" ]; then
+          echo "Error: Missing required environment variable: DOMAIN"
+          exit 1
+        fi
+      env:
+        DOMAIN: ${{ vars.DOMAIN }}
+
     - name: Check required secrets
       env:
         DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
