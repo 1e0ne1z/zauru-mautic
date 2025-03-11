@@ -76,24 +76,20 @@ jobs:
         version: 2
         verbose: false
 
-    - name: Setup SSH key
+    - name: Create Lightsail key pair
       run: |
-        # Create SSH directory and set permissions
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        # Delete existing key pair if it exists
+        aws lightsail delete-key-pair --key-pair-name zauru-mautic-key || true
+        
+        # Create new key pair
+        KEY_PAIR=$(aws lightsail create-key-pair --key-pair-name zauru-mautic-key --query 'privateKeyBase64' --output text)
+        
+        # Save private key for SSH access
+        echo "$KEY_PAIR" | base64 -d > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         
-        # Generate public key from private key with proper format
-        ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
-        
-        # Debug: Show public key format (without revealing the key)
-        echo "Public key format check:"
-        cat ~/.ssh/id_rsa.pub | cut -c1-30
-        
-        # Import the SSH key to Lightsail (using direct string)
-        aws lightsail import-key-pair \
-          --key-pair-name zauru-mautic-key \
-          --public-key-base64 "$(cat ~/.ssh/id_rsa.pub | base64 -w 0)"
+        # Debug: Verify key was created
+        aws lightsail get-key-pair --key-pair-name zauru-mautic-key
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
@@ -106,7 +102,7 @@ jobs:
             --blueprint-id ubuntu_20_04 \
             --bundle-id small_2_0 \
             --key-pair-name zauru-mautic-key \
-            --user-data ./setup-vps.sh
+            --user-data-file setup-vps.sh
           
           echo "Waiting for instance to be ready..."
           while : ; do
