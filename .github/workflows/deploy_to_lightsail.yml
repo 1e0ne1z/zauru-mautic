@@ -86,7 +86,7 @@ jobs:
           aws lightsail create-instances \
             --instance-names zauru-mautic \
             --availability-zone us-east-1a \
-            --blueprint-id ubuntu_20_04 \
+            --blueprint-id ubuntu_24_04 \
             --bundle-id small_2_0 \
             --user-data ./setup-vps.sh
           
