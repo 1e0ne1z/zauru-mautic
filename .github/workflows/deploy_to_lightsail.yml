@@ -82,11 +82,11 @@ jobs:
         if [ "$INSTANCE_EXISTS" = "false" ]; then
           echo "Creating new Lightsail instance..."
           aws lightsail create-instances \
-            --instance-name zauru-mautic \
+            --instance-names zauru-mautic \
             --availability-zone us-east-1a \
             --blueprint-id ubuntu_20_04 \
             --bundle-id small_2_0 \
-            --user-data file://setup-vps.sh
+            --user-data ./setup-vps.sh
           
           # Wait for instance to be running
           echo "Waiting for instance to be ready..."
