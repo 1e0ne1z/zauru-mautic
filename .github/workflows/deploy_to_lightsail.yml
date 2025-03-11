@@ -239,7 +239,10 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
+        # Add the host key to known_hosts to avoid verification prompt
+        ssh-keyscan -H ${{ env.ip }} >> ~/.ssh/known_hosts
+        # Use 'ubuntu' user instead of 'root'
+        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
         rm -f ~/.ssh/id_rsa
       shell: bash
 
