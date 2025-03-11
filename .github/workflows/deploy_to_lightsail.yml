@@ -233,26 +233,21 @@ jobs:
 
     - name: Download setup-dc.log from Server
       run: |
-        # Create a temporary directory with correct permissions
-        sudo mkdir -p /tmp/ssh
-        sudo chmod 700 /tmp/ssh
-        
-        # Save and set permissions for the key
-        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" | sudo tee /tmp/ssh/lightsail.pem > /dev/null
-        sudo chmod 600 /tmp/ssh/lightsail.pem
-        sudo chown $USER:$USER /tmp/ssh/lightsail.pem
+        # Save the key file in current directory
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > lightsail.pem
+        chmod 600 lightsail.pem
         
         # Debug permissions
-        ls -la /tmp/ssh/
+        ls -la lightsail.pem
         
         # Download the file
         scp -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            -i /tmp/ssh/lightsail.pem \
+            -i lightsail.pem \
             ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
         
         # Clean up
-        sudo rm -rf /tmp/ssh
+        rm -f lightsail.pem
 
     - name: Upload setup-dc.log as Artifact
       uses: actions/upload-artifact@v4
