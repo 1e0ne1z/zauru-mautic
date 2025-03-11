@@ -78,22 +78,6 @@ jobs:
         version: 2
         verbose: false
 
-    - name: Setup SSH access
-      run: |
-        # Create SSH directory and save the PEM key
-        mkdir -p ~/.ssh
-        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
-        chmod 400 ~/.ssh/lightsail.pem
-        
-        # Generate public key from the PEM file
-        ssh-keygen -y -f ~/.ssh/lightsail.pem > ~/.ssh/lightsail.pub
-        
-        # Upload the public key to Lightsail
-        aws lightsail delete-key-pair --key-pair-name zauru-mautic-key || true
-        aws lightsail import-key-pair \
-          --key-pair-name zauru-mautic-key \
-          --public-key-base64 "$(base64 -w 0 ~/.ssh/lightsail.pub)"
-
     - name: Create Lightsail instance if it doesn't exist
       run: |
         INSTANCE_EXISTS=$(aws lightsail get-instance --instance-name zauru-mautic 2>/dev/null || echo "false")
@@ -104,7 +88,6 @@ jobs:
             --availability-zone us-east-1a \
             --blueprint-id ubuntu_20_04 \
             --bundle-id small_2_0 \
-            --key-pair-name zauru-mautic-key \
             --user-data ./setup-vps.sh
           
           echo "Waiting for instance to be ready..."
