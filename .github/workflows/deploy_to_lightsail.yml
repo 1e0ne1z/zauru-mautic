@@ -233,33 +233,25 @@ jobs:
 
     - name: Download setup-dc.log from Server
       run: |
-        # Save the key file in current directory
-        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > lightsail.pem
-        chmod 600 lightsail.pem
+        # Create .ssh directory with correct permissions
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
         
-        # Check if the file exists on remote server
-        echo "Checking if setup-dc.log exists..."
-        if ssh -o StrictHostKeyChecking=no \
+        # Save and set permissions for the key
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
+        chmod 600 ~/.ssh/lightsail.pem
+        
+        # Debug permissions
+        ls -la ~/.ssh/
+        
+        # Download the file
+        scp -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            -i lightsail.pem \
-            ubuntu@${{ env.ip }} '[ -f /var/log/setup-dc.log ]'; then
-            
-            echo "File exists, downloading..."
-            scp -o StrictHostKeyChecking=no \
-                -o UserKnownHostsFile=/dev/null \
-                -i lightsail.pem \
-                ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
-        else
-            echo "Warning: setup-dc.log does not exist on the server yet"
-            echo "Checking system logs for potential issues..."
-            ssh -o StrictHostKeyChecking=no \
-                -o UserKnownHostsFile=/dev/null \
-                -i lightsail.pem \
-                ubuntu@${{ env.ip }} 'sudo tail -n 50 /var/log/syslog'
-        fi
+            -i ~/.ssh/lightsail.pem \
+            ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
         
         # Clean up
-        rm -f lightsail.pem
+        rm -f ~/.ssh/lightsail.pem
 
     - name: Upload setup-dc.log as Artifact
       uses: actions/upload-artifact@v4
