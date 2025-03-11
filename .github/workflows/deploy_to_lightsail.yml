@@ -88,9 +88,16 @@ jobs:
             --bundle-id small_2_0 \
             --user-data ./setup-vps.sh
           
-          # Wait for instance to be running
           echo "Waiting for instance to be ready..."
-          aws lightsail wait instance-running --instance-name zauru-mautic
+          while : ; do
+            STATUS=$(aws lightsail get-instance --instance-name zauru-mautic --query 'instance.state.name' --output text)
+            echo "Instance status: $STATUS"
+            if [ "$STATUS" = "running" ]; then
+              echo "Instance is now running"
+              break
+            fi
+            sleep 10
+          done
         else
           echo "Instance 'zauru-mautic' already exists."
         fi
