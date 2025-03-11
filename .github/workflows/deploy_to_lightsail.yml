@@ -88,14 +88,18 @@ jobs:
         
         # Create new key pair
         echo "Creating new key pair..."
-        KEY_PAIR=$(aws lightsail create-key-pair --key-pair-name zauru-mautic-key --query 'privateKeyBase64' --output text)
-        
-        # Save private key for SSH access
         mkdir -p ~/.ssh
-        echo "$KEY_PAIR" | base64 -d > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
+        aws lightsail create-key-pair \
+          --key-pair-name zauru-mautic-key \
+          --query 'privateKeyBase64' \
+          --output text > ~/.ssh/id_rsa.base64
         
-        # Debug: Verify key was created
+        # Decode and save private key
+        base64 --decode ~/.ssh/id_rsa.base64 > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        rm ~/.ssh/id_rsa.base64
+        
+        # Debug: Verify key pair creation
         echo "Verifying key pair creation..."
         aws lightsail get-key-pair --key-pair-name zauru-mautic-key
 
