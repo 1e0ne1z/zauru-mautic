@@ -82,7 +82,7 @@ jobs:
       run: |
         INSTANCE_EXISTS=$(aws lightsail get-instance --instance-name zauru-mautic 2>/dev/null || echo "false")
         if [ "$INSTANCE_EXISTS" = "false" ]; then
-          echo "Creating new Lightsail instance in ubuntu 24.04..."
+          echo "Creating new Lightsail instance..."
           aws lightsail create-instances \
             --instance-names zauru-mautic \
             --availability-zone us-east-1a \
