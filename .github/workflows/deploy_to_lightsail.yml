@@ -230,7 +230,7 @@ jobs:
         # Get current firewall rules
         RULES=$(aws lightsail get-instance-port-states --instance-name zauru-mautic)
         
-        # Check if port 443 is already open
+        # Check if port 443 is already open in instance
         if ! echo "$RULES" | grep -q '"fromPort": 443'; then
           echo "Opening port 443 for HTTPS..."
           aws lightsail open-instance-public-ports \
