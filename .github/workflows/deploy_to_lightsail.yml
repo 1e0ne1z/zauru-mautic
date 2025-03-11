@@ -90,8 +90,6 @@ jobs:
       run: |
         # List available blueprints for verification
         echo "Available Docker blueprints:"
-        aws lightsail get-blueprints --query 'blueprints[?contains(blueprintId, `docker`)].blueprintId' --output table
-        
         INSTANCE_EXISTS=$(aws lightsail get-instance --instance-name zauru-mautic 2>/dev/null || echo "false")
         if [ "$INSTANCE_EXISTS" = "false" ]; then
           # Get the default key pair name
@@ -102,7 +100,7 @@ jobs:
           aws lightsail create-instances \
             --instance-names zauru-mautic \
             --availability-zone us-east-1a \
-            --blueprint-id docker-ce-2204 \
+            --blueprint-id ubuntu_24_04 \
             --bundle-id small_2_0 \
             --key-pair-name $DEFAULT_KEY_NAME
           
