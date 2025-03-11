@@ -86,22 +86,24 @@ jobs:
           echo "No existing key pair found, creating new one..."
         fi
         
-        # Create new key pair
+        # Create new key pair and save private key directly
         echo "Creating new key pair..."
         mkdir -p ~/.ssh
         aws lightsail create-key-pair \
           --key-pair-name zauru-mautic-key \
-          --query 'privateKeyBase64' \
-          --output text > ~/.ssh/id_rsa.base64
+          --query 'privateKey' \
+          --output text > ~/.ssh/id_rsa
         
-        # Decode and save private key
-        base64 --decode ~/.ssh/id_rsa.base64 > ~/.ssh/id_rsa
+        # Set correct permissions
         chmod 600 ~/.ssh/id_rsa
-        rm ~/.ssh/id_rsa.base64
         
         # Debug: Verify key pair creation
         echo "Verifying key pair creation..."
         aws lightsail get-key-pair --key-pair-name zauru-mautic-key
+        
+        # Debug: Check key format (showing first line only)
+        echo "Checking key format:"
+        head -n 1 ~/.ssh/id_rsa
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
@@ -114,7 +116,7 @@ jobs:
             --blueprint-id ubuntu_20_04 \
             --bundle-id small_2_0 \
             --key-pair-name zauru-mautic-key \
-            --user-data-file setup-vps.sh
+            --user-data ./setup-vps.sh
           
           echo "Waiting for instance to be ready..."
           while : ; do
