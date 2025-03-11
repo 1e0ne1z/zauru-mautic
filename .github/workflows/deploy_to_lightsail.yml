@@ -218,3 +218,22 @@ jobs:
       with:
         name: setup-dc-log
         path: ./setup-dc.log
+
+    - name: Check and configure HTTPS port
+      run: |
+        # Get current firewall rules
+        RULES=$(aws lightsail get-instance-port-states --instance-name zauru-mautic)
+        
+        # Check if port 443 is already open
+        if ! echo "$RULES" | grep -q '"fromPort": 443'; then
+          echo "Opening port 443 for HTTPS..."
+          aws lightsail open-instance-public-ports \
+            --instance-name zauru-mautic \
+            --port-info fromPort=443,toPort=443,protocol=TCP
+          echo "Port 443 opened successfully"
+        else
+          echo "Port 443 is already open"
+        fi
+
+        # Verify the rule was added
+        aws lightsail get-instance-port-states --instance-name zauru-mautic
