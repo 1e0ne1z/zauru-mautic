@@ -76,28 +76,25 @@ jobs:
         version: 2
         verbose: false
 
-    - name: Generate SSH key pair
+    - name: Setup SSH key
       run: |
-        # Generate a new SSH key pair
-        ssh-keygen -t rsa -b 4096 -f lightsail_key -N ""
+        # Create SSH directory and set permissions
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
         
-        # Store private key in GitHub secrets (base64 encoded)
-        PRIVATE_KEY=$(base64 -w 0 lightsail_key)
-        echo "LIGHTSAIL_SSH_PRIVATE_KEY=$PRIVATE_KEY" >> $GITHUB_ENV
+        # Generate public key from private key
+        ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
         
-        # Get public key content
-        PUBLIC_KEY=$(cat lightsail_key.pub)
-        echo "LIGHTSAIL_SSH_PUBLIC_KEY=$PUBLIC_KEY" >> $GITHUB_ENV
+        # Import the SSH key to Lightsail
+        aws lightsail import-key-pair \
+          --key-pair-name zauru-mautic-key \
+          --public-key-base64 "$(base64 -w 0 ~/.ssh/id_rsa.pub)"
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
         INSTANCE_EXISTS=$(aws lightsail get-instance --instance-name zauru-mautic 2>/dev/null || echo "false")
         if [ "$INSTANCE_EXISTS" = "false" ]; then
-          # First, import the SSH key to Lightsail
-          aws lightsail import-key-pair \
-            --key-pair-name zauru-mautic-key \
-            --public-key-base64 "$(base64 -w 0 lightsail_key.pub)"
-          
           echo "Creating new Lightsail instance..."
           aws lightsail create-instances \
             --instance-names zauru-mautic \
@@ -117,11 +114,6 @@ jobs:
             fi
             sleep 10
           done
-
-          # Create GitHub secret using GitHub CLI or API
-          gh secret set LIGHTSAIL_SSH_PRIVATE_KEY --body "${{ env.LIGHTSAIL_SSH_PRIVATE_KEY }}"
-          gh secret set LIGHTSAIL_SSH_PUBLIC_KEY --body "${{ env.LIGHTSAIL_SSH_PUBLIC_KEY }}"
-          
         else
           echo "Instance 'zauru-mautic' already exists."
         fi
@@ -208,7 +200,7 @@ jobs:
     - name: Deploy to Server
       uses: easingthemes/ssh-deploy@main
       with:
-        SSH_PRIVATE_KEY: ${{ env.LIGHTSAIL_SSH_PRIVATE_KEY }}
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         ARGS: "-rlgoDzvc"
         SOURCE: "."
         REMOTE_HOST: ${{ env.ip }}
@@ -261,12 +253,3 @@ jobs:
 
         # Verify the rule was added
         aws lightsail get-instance-port-states --instance-name zauru-mautic
-
-    - name: Setup GitHub CLI
-      uses: cli/cli@v2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-permissions:
-  contents: read
-  secrets: write
