@@ -83,13 +83,14 @@ jobs:
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         
-        # Generate public key from private key
-        ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
+        # Generate public key from private key and format it properly
+        PUBLIC_KEY=$(ssh-keygen -y -f ~/.ssh/id_rsa | awk '{print $1" "$2}')
+        echo "ssh-rsa $PUBLIC_KEY" > ~/.ssh/id_rsa.pub
         
         # Import the SSH key to Lightsail
         aws lightsail import-key-pair \
           --key-pair-name zauru-mautic-key \
-          --public-key-base64 "$(base64 -w 0 ~/.ssh/id_rsa.pub)"
+          --public-key "$(cat ~/.ssh/id_rsa.pub)"
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
