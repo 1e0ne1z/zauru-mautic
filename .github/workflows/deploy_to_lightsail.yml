@@ -71,10 +71,10 @@ jobs:
         aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
     - name: Install AWS CLI
-      run: |
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        unzip awscliv2.zip
-        sudo ./aws/install
+      uses: unfor19/install-aws-cli-action@v1
+      with:
+        version: 2
+        verbose: false
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
