@@ -104,6 +104,13 @@ jobs:
           echo "Instance 'zauru-mautic' already exists."
         fi
 
+    - name: Get Instance IP
+      run: |
+        echo "Getting instance IP address..."
+        IP=$(aws lightsail get-instance --instance-name zauru-mautic --query 'instance.publicIpAddress' --output text)
+        echo "Instance IP: $IP"
+        echo "ip=$IP" >> $GITHUB_ENV
+
     - name: Setup SSH access
       run: |
         # Create SSH directory and save the PEM key
@@ -117,6 +124,7 @@ jobs:
     - name: Wait for SSH to be available
       run: |
         echo "Waiting for SSH to be available..."
+        echo "Attempting to connect to ${{ env.ip }}"
         for i in {1..6}; do
           if ssh -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=/dev/null \
