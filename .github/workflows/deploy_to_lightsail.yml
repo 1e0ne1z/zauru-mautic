@@ -237,14 +237,26 @@ jobs:
         echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > lightsail.pem
         chmod 600 lightsail.pem
         
-        # Debug permissions
-        ls -la lightsail.pem
-        
-        # Download the file
-        scp -o StrictHostKeyChecking=no \
+        # Check if the file exists on remote server
+        echo "Checking if setup-dc.log exists..."
+        if ssh -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -i lightsail.pem \
-            ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
+            ubuntu@${{ env.ip }} '[ -f /var/log/setup-dc.log ]'; then
+            
+            echo "File exists, downloading..."
+            scp -o StrictHostKeyChecking=no \
+                -o UserKnownHostsFile=/dev/null \
+                -i lightsail.pem \
+                ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
+        else
+            echo "Warning: setup-dc.log does not exist on the server yet"
+            echo "Checking system logs for potential issues..."
+            ssh -o StrictHostKeyChecking=no \
+                -o UserKnownHostsFile=/dev/null \
+                -i lightsail.pem \
+                ubuntu@${{ env.ip }} 'sudo tail -n 50 /var/log/syslog'
+        fi
         
         # Clean up
         rm -f lightsail.pem
