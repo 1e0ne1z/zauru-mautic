@@ -110,7 +110,7 @@ jobs:
         STATIC_IP_EXISTS=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static || echo "false")
         
         if [ "$STATIC_IP_EXISTS" = "false" ]; then
-          echo "Creating new static IP..."
+          echo "Creating new static IP in Lightsail..."
           aws lightsail allocate-static-ip --static-ip-name zauru-mautic-static
           
           echo "Attaching static IP to instance..."
