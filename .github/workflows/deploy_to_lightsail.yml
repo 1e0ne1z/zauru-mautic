@@ -104,6 +104,16 @@ jobs:
         # Debug: Check key format (showing first line only)
         echo "Checking key format:"
         head -n 1 ~/.ssh/id_rsa
+        
+        # Debug key creation
+        echo "Verifying private key format:"
+        head -n 1 ~/.ssh/id_rsa | grep -q "BEGIN RSA PRIVATE KEY" && echo "Key appears to be in correct format" || echo "Key format incorrect"
+        
+        echo "Key permissions:"
+        ls -l ~/.ssh/id_rsa
+        
+        echo "Key fingerprint:"
+        ssh-keygen -l -f ~/.ssh/id_rsa || echo "Failed to get fingerprint"
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
@@ -276,3 +286,33 @@ jobs:
 
         # Verify the rule was added
         aws lightsail get-instance-port-states --instance-name zauru-mautic
+
+    - name: Debug SSH Connection
+      run: |
+        # Check if key exists and show permissions
+        echo "Checking SSH key..."
+        ls -la ~/.ssh/
+        
+        # Show public key derived from private key
+        echo "Generated public key from private key:"
+        ssh-keygen -y -f ~/.ssh/id_rsa || echo "Failed to read private key"
+        
+        # Get instance metadata to verify key
+        echo "Instance SSH key fingerprint from AWS:"
+        aws lightsail get-instance --instance-name zauru-mautic \
+          --query 'instance.sshKeyName' --output text
+        
+        # Try connection with maximum verbosity
+        echo "Attempting SSH connection with full debug..."
+        ssh -vvv -i ~/.ssh/id_rsa ubuntu@${{ env.ip }} 'echo "test"'
+
+    - name: Wait and Retry SSH Connection
+      run: |
+        echo "Waiting 30 seconds for instance to fully initialize..."
+        sleep 30
+        
+        # Try SSH connection again
+        ssh -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -i ~/.ssh/id_rsa ubuntu@${{ env.ip }} 'echo "SSH test"'
