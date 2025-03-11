@@ -1,9 +1,9 @@
-name: Deploy to DigitalOcean
+name: Deploy to AWS Lightsail
 
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   deploy:
@@ -41,8 +41,8 @@ jobs:
 
     - name: Check required secrets
       env:
-        DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-        DIGITALOCEAN_SSH_FINGERPRINT: ${{ secrets.DIGITALOCEAN_SSH_FINGERPRINT }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         MAUTIC_PASSWORD: ${{ secrets.MAUTIC_PASSWORD }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       run: |
@@ -53,8 +53,8 @@ jobs:
           fi
         }
 
-        check_secret "DIGITALOCEAN_ACCESS_TOKEN"
-        check_secret "DIGITALOCEAN_SSH_FINGERPRINT"
+        check_secret "AWS_ACCESS_KEY_ID"
+        check_secret "AWS_SECRET_ACCESS_KEY"
         check_secret "MAUTIC_PASSWORD"
         check_secret "SSH_PRIVATE_KEY"
 
@@ -63,36 +63,69 @@ jobs:
           exit 1
         fi
 
-    - name: Install doctl
-      uses: digitalocean/action-doctl@v2
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
-    - name: Create VPS if it doesn't exist
+    - name: Install AWS CLI
       run: |
-        if ! doctl compute droplet list | grep -q 'mautic-vps'; then
-          doctl compute droplet create mautic-vps --image docker-20-04 --size s-1vcpu-1gb --region nyc1 --ssh-keys ${{ secrets.DIGITALOCEAN_SSH_FINGERPRINT }} --wait --user-data-file setup-vps.sh --enable-monitoring
-          echo "droplet_created=true" >> $GITHUB_ENV
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+
+    - name: Create Lightsail instance if it doesn't exist
+      run: |
+        INSTANCE_EXISTS=$(aws lightsail get-instance --instance-name zauru-mautic 2>/dev/null || echo "false")
+        if [ "$INSTANCE_EXISTS" = "false" ]; then
+          echo "Creating new Lightsail instance..."
+          aws lightsail create-instance \
+            --instance-name zauru-mautic \
+            --availability-zone us-east-1a \
+            --blueprint-id ubuntu_20_04 \
+            --bundle-id small_2_0 \
+            --user-data file://setup-vps.sh
+          
+          # Wait for instance to be running
+          echo "Waiting for instance to be ready..."
+          aws lightsail wait instance-running --instance-name zauru-mautic
         else
-          echo "Droplet 'mautic-vps' already exists."
-          echo "droplet_created=true" >> $GITHUB_ENV
+          echo "Instance 'zauru-mautic' already exists."
         fi
 
-    - name: Get VPS IP
+    - name: Handle Static IP
       run: |
-        echo "Waiting for droplet to be ready..."
-        while : ; do
-          echo "."
-          sleep 2
-          STATUS=$(doctl compute droplet get mautic-vps --format Status --no-header)
-          if [ "$STATUS" = "active" ]; then
-            IP=$(doctl compute droplet get mautic-vps --format PublicIPv4 --no-header)
-            if [ -n "$IP" ]; then
-              echo "Droplet is active. IP address: $IP"
-              break
-            fi
+        # Check if static IP exists
+        STATIC_IP_EXISTS=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static-ip 2>/dev/null || echo "false")
+        
+        if [ "$STATIC_IP_EXISTS" = "false" ]; then
+          echo "Creating new static IP..."
+          aws lightsail allocate-static-ip --static-ip-name zauru-mautic-static-ip
+          
+          echo "Attaching static IP to instance..."
+          aws lightsail attach-static-ip \
+            --static-ip-name zauru-mautic-static-ip \
+            --instance-name zauru-mautic
+        else
+          # Check if static IP is attached to our instance
+          ATTACHED_INSTANCE=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static-ip --query 'staticIp.attachedTo' --output text)
+          
+          if [ "$ATTACHED_INSTANCE" != "zauru-mautic" ]; then
+            echo "Static IP exists but not attached to our instance. Attaching now..."
+            aws lightsail attach-static-ip \
+              --static-ip-name zauru-mautic-static-ip \
+              --instance-name zauru-mautic
+          else
+            echo "Static IP already attached to instance zauru-mautic"
           fi
-        done
+        fi
+
+    - name: Get Static IP
+      run: |
+        IP=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static-ip --query 'staticIp.ipAddress' --output text)
+        echo "Static IP: $IP"
         echo "ip=$IP" >> $GITHUB_ENV
 
     - name: Wait for server to be accessible
