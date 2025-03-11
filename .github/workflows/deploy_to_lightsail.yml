@@ -76,44 +76,19 @@ jobs:
         version: 2
         verbose: false
 
-    - name: Create Lightsail key pair
+    - name: Setup SSH access
       run: |
-        # Check if key pair exists
-        if aws lightsail get-key-pair --key-pair-name zauru-mautic-key >/dev/null 2>&1; then
-          echo "Deleting existing key pair..."
-          aws lightsail delete-key-pair --key-pair-name zauru-mautic-key
-        else
-          echo "No existing key pair found, creating new one..."
-        fi
+        # Generate a new SSH key pair locally
+        ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
         
-        # Create new key pair and save private key directly
-        echo "Creating new key pair..."
-        mkdir -p ~/.ssh
-        aws lightsail create-key-pair \
+        # Get the public key content
+        PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
+        
+        # Upload the public key to Lightsail
+        aws lightsail delete-key-pair --key-pair-name zauru-mautic-key || true
+        aws lightsail import-key-pair \
           --key-pair-name zauru-mautic-key \
-          --query 'privateKey' \
-          --output text > ~/.ssh/id_rsa
-        
-        # Set correct permissions
-        chmod 600 ~/.ssh/id_rsa
-        
-        # Debug: Verify key pair creation
-        echo "Verifying key pair creation..."
-        aws lightsail get-key-pair --key-pair-name zauru-mautic-key
-        
-        # Debug: Check key format (showing first line only)
-        echo "Checking key format:"
-        head -n 1 ~/.ssh/id_rsa
-        
-        # Debug key creation
-        echo "Verifying private key format:"
-        head -n 1 ~/.ssh/id_rsa | grep -q "BEGIN RSA PRIVATE KEY" && echo "Key appears to be in correct format" || echo "Key format incorrect"
-        
-        echo "Key permissions:"
-        ls -l ~/.ssh/id_rsa
-        
-        echo "Key fingerprint:"
-        ssh-keygen -l -f ~/.ssh/id_rsa || echo "Failed to get fingerprint"
+          --public-key-base64 "$(base64 -w 0 ~/.ssh/id_rsa.pub)"
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
@@ -142,32 +117,20 @@ jobs:
           echo "Instance 'zauru-mautic' already exists."
         fi
 
-    - name: Handle Static IP
+    - name: Wait for SSH to be available
       run: |
-        # Check if static IP exists
-        STATIC_IP_EXISTS=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static-ip 2>/dev/null || echo "false")
-        
-        if [ "$STATIC_IP_EXISTS" = "false" ]; then
-          echo "Creating new static IP..."
-          aws lightsail allocate-static-ip --static-ip-name zauru-mautic-static-ip
-          
-          echo "Attaching static IP to instance..."
-          aws lightsail attach-static-ip \
-            --static-ip-name zauru-mautic-static-ip \
-            --instance-name zauru-mautic
-        else
-          # Check if static IP is attached to our instance
-          ATTACHED_INSTANCE=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static-ip --query 'staticIp.attachedTo' --output text)
-          
-          if [ "$ATTACHED_INSTANCE" != "zauru-mautic" ]; then
-            echo "Static IP exists but not attached to our instance. Attaching now..."
-            aws lightsail attach-static-ip \
-              --static-ip-name zauru-mautic-static-ip \
-              --instance-name zauru-mautic
-          else
-            echo "Static IP already attached to instance zauru-mautic"
+        echo "Waiting for SSH to be available..."
+        for i in {1..6}; do
+          if ssh -o StrictHostKeyChecking=no \
+             -o UserKnownHostsFile=/dev/null \
+             -o ConnectTimeout=10 \
+             -i ~/.ssh/id_rsa ubuntu@${{ env.ip }} 'echo "SSH test"'; then
+            echo "SSH connection successful"
+            break
           fi
-        fi
+          echo "Attempt $i failed, waiting 10 seconds..."
+          sleep 10
+        done
 
     - name: Get Static IP
       run: |
@@ -246,21 +209,10 @@ jobs:
 
     - name: Download setup-dc.log from Server
       run: |
-        # The ~/.ssh/id_rsa file should already exist from the key pair creation step
-        echo "Using key from Lightsail key pair..."
-        ls -l ~/.ssh/id_rsa || echo "Key file not found!"
-        
-        # Add the host key to known_hosts
-        ssh-keyscan -H ${{ env.ip }} >> ~/.ssh/known_hosts
-        
-        # Try to connect with verbose output for debugging
-        echo "Testing SSH connection..."
-        ssh -v -i ~/.ssh/id_rsa ubuntu@${{ env.ip }} 'echo "SSH connection successful"'
-        
-        # Download the file
-        echo "Downloading setup-dc.log..."
-        scp -i ~/.ssh/id_rsa ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
-      shell: bash
+        scp -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -i ~/.ssh/id_rsa \
+            ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log || echo "Failed to download log file"
 
     - name: Upload setup-dc.log as Artifact
       uses: actions/upload-artifact@v4
