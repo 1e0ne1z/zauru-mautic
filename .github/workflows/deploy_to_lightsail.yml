@@ -44,7 +44,6 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         MAUTIC_PASSWORD: ${{ secrets.MAUTIC_PASSWORD }}
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
       run: |
         error_missing_secrets=()
@@ -57,7 +56,6 @@ jobs:
         check_secret "AWS_ACCESS_KEY_ID"
         check_secret "AWS_SECRET_ACCESS_KEY"
         check_secret "MAUTIC_PASSWORD"
-        check_secret "SSH_PRIVATE_KEY"
         check_secret "LIGHTSAIL_SSH_KEY"
 
         if [ ${#error_missing_secrets[@]} -ne 0 ]; then
@@ -77,6 +75,16 @@ jobs:
       with:
         version: 2
         verbose: false
+
+    - name: Setup SSH access
+      run: |
+        # Create SSH directory and save the PEM key
+        mkdir -p ~/.ssh
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
+        chmod 400 ~/.ssh/lightsail.pem
+        
+        # Debug: Verify the key file exists and has correct permissions
+        ls -la ~/.ssh/lightsail.pem
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
@@ -137,16 +145,6 @@ jobs:
         IP=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static --query 'staticIp.ipAddress' --output text)
         echo "Static IP: $IP"
         echo "ip=$IP" >> $GITHUB_ENV
-
-    - name: Setup SSH access
-      run: |
-        # Create SSH directory and save the PEM key
-        mkdir -p ~/.ssh
-        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
-        chmod 400 ~/.ssh/lightsail.pem
-        
-        # Debug: Verify the key file exists and has correct permissions
-        ls -la ~/.ssh/lightsail.pem
 
     - name: Wait for SSH to be available
       run: |
@@ -213,11 +211,11 @@ jobs:
     - name: Deploy to Server
       uses: easingthemes/ssh-deploy@main
       with:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
         ARGS: "-rlgoDzvc"
         SOURCE: "."
         REMOTE_HOST: ${{ env.ip }}
-        REMOTE_USER: root
+        REMOTE_USER: ubuntu
         TARGET: /var/www
         EXCLUDE: ".git"
         SCRIPT_BEFORE: mkdir -p /var/www
@@ -235,10 +233,11 @@ jobs:
 
     - name: Download setup-dc.log from Server
       run: |
-        scp -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            -i ~/.ssh/lightsail.pem \
-            ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log || echo "Failed to download log file"
+        mkdir -p ~/.ssh
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
+        chmod 600 ~/.ssh/lightsail.pem
+        scp -o StrictHostKeyChecking=no -i ~/.ssh/lightsail.pem ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
+        rm -f ~/.ssh/lightsail.pem
 
     - name: Upload setup-dc.log as Artifact
       uses: actions/upload-artifact@v4
