@@ -45,6 +45,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         MAUTIC_PASSWORD: ${{ secrets.MAUTIC_PASSWORD }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
       run: |
         error_missing_secrets=()
         check_secret() {
@@ -57,6 +58,7 @@ jobs:
         check_secret "AWS_SECRET_ACCESS_KEY"
         check_secret "MAUTIC_PASSWORD"
         check_secret "SSH_PRIVATE_KEY"
+        check_secret "LIGHTSAIL_SSH_KEY"
 
         if [ ${#error_missing_secrets[@]} -ne 0 ]; then
           echo "Error: Missing required secrets: ${error_missing_secrets[*]}"
@@ -78,17 +80,19 @@ jobs:
 
     - name: Setup SSH access
       run: |
-        # Generate a new SSH key pair locally
-        ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+        # Create SSH directory and save the PEM key
+        mkdir -p ~/.ssh
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
+        chmod 400 ~/.ssh/lightsail.pem
         
-        # Get the public key content
-        PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
+        # Generate public key from the PEM file
+        ssh-keygen -y -f ~/.ssh/lightsail.pem > ~/.ssh/lightsail.pub
         
         # Upload the public key to Lightsail
         aws lightsail delete-key-pair --key-pair-name zauru-mautic-key || true
         aws lightsail import-key-pair \
           --key-pair-name zauru-mautic-key \
-          --public-key-base64 "$(base64 -w 0 ~/.ssh/id_rsa.pub)"
+          --public-key-base64 "$(base64 -w 0 ~/.ssh/lightsail.pub)"
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
@@ -124,7 +128,7 @@ jobs:
           if ssh -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=/dev/null \
              -o ConnectTimeout=10 \
-             -i ~/.ssh/id_rsa ubuntu@${{ env.ip }} 'echo "SSH test"'; then
+             -i ~/.ssh/lightsail.pem ubuntu@${{ env.ip }} 'echo "SSH test"'; then
             echo "SSH connection successful"
             break
           fi
@@ -211,7 +215,7 @@ jobs:
       run: |
         scp -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            -i ~/.ssh/id_rsa \
+            -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log || echo "Failed to download log file"
 
     - name: Upload setup-dc.log as Artifact
@@ -247,7 +251,7 @@ jobs:
         
         # Show public key derived from private key
         echo "Generated public key from private key:"
-        ssh-keygen -y -f ~/.ssh/id_rsa || echo "Failed to read private key"
+        ssh-keygen -y -f ~/.ssh/lightsail.pem || echo "Failed to read private key"
         
         # Get instance metadata to verify key
         echo "Instance SSH key fingerprint from AWS:"
@@ -256,7 +260,7 @@ jobs:
         
         # Try connection with maximum verbosity
         echo "Attempting SSH connection with full debug..."
-        ssh -vvv -i ~/.ssh/id_rsa ubuntu@${{ env.ip }} 'echo "test"'
+        ssh -vvv -i ~/.ssh/lightsail.pem ubuntu@${{ env.ip }} 'echo "test"'
 
     - name: Wait and Retry SSH Connection
       run: |
@@ -267,4 +271,4 @@ jobs:
         ssh -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             -o ConnectTimeout=10 \
-            -i ~/.ssh/id_rsa ubuntu@${{ env.ip }} 'echo "SSH test"'
+            -i ~/.ssh/lightsail.pem ubuntu@${{ env.ip }} 'echo "SSH test"'
