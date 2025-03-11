@@ -104,6 +104,16 @@ jobs:
           echo "Instance 'zauru-mautic' already exists."
         fi
 
+    - name: Setup SSH access
+      run: |
+        # Create SSH directory and save the PEM key
+        mkdir -p ~/.ssh
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
+        chmod 400 ~/.ssh/lightsail.pem
+        
+        # Debug: Verify the key file exists and has correct permissions
+        ls -la ~/.ssh/lightsail.pem
+
     - name: Wait for SSH to be available
       run: |
         echo "Waiting for SSH to be available..."
