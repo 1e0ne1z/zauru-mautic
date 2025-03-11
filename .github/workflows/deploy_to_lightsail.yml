@@ -236,14 +236,20 @@ jobs:
 
     - name: Download setup-dc.log from Server
       run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        # Add the host key to known_hosts to avoid verification prompt
+        # The ~/.ssh/id_rsa file should already exist from the key pair creation step
+        echo "Using key from Lightsail key pair..."
+        ls -l ~/.ssh/id_rsa || echo "Key file not found!"
+        
+        # Add the host key to known_hosts
         ssh-keyscan -H ${{ env.ip }} >> ~/.ssh/known_hosts
-        # Use 'ubuntu' user instead of 'root'
-        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
-        rm -f ~/.ssh/id_rsa
+        
+        # Try to connect with verbose output for debugging
+        echo "Testing SSH connection..."
+        ssh -v -i ~/.ssh/id_rsa ubuntu@${{ env.ip }} 'echo "SSH connection successful"'
+        
+        # Download the file
+        echo "Downloading setup-dc.log..."
+        scp -i ~/.ssh/id_rsa ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
       shell: bash
 
     - name: Upload setup-dc.log as Artifact
