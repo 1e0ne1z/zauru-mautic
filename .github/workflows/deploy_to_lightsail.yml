@@ -78,17 +78,25 @@ jobs:
 
     - name: Create Lightsail key pair
       run: |
-        # Delete existing key pair if it exists
-        aws lightsail delete-key-pair --key-pair-name zauru-mautic-key || true
+        # Check if key pair exists
+        if aws lightsail get-key-pair --key-pair-name zauru-mautic-key >/dev/null 2>&1; then
+          echo "Deleting existing key pair..."
+          aws lightsail delete-key-pair --key-pair-name zauru-mautic-key
+        else
+          echo "No existing key pair found, creating new one..."
+        fi
         
         # Create new key pair
+        echo "Creating new key pair..."
         KEY_PAIR=$(aws lightsail create-key-pair --key-pair-name zauru-mautic-key --query 'privateKeyBase64' --output text)
         
         # Save private key for SSH access
+        mkdir -p ~/.ssh
         echo "$KEY_PAIR" | base64 -d > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         
         # Debug: Verify key was created
+        echo "Verifying key pair creation..."
         aws lightsail get-key-pair --key-pair-name zauru-mautic-key
 
     - name: Create Lightsail instance if it doesn't exist
