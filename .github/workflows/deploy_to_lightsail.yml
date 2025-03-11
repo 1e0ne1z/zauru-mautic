@@ -96,7 +96,8 @@ jobs:
             --availability-zone us-east-1a \
             --blueprint-id ubuntu_24_04 \
             --bundle-id small_2_0 \
-            --user-data ./setup-vps.sh
+            --user-data ./setup-vps.sh \
+            --key-pair-name lightsail 
           
           echo "Waiting for instance to be ready..."
           while : ; do
