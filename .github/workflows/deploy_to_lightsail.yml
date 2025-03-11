@@ -104,11 +104,38 @@ jobs:
           echo "Instance 'zauru-mautic' already exists."
         fi
 
+    - name: Handle Static IP
+      run: |
+        # Check if static IP exists
+        STATIC_IP_EXISTS=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static || echo "false")
+        
+        if [ "$STATIC_IP_EXISTS" = "false" ]; then
+          echo "Creating new static IP..."
+          aws lightsail allocate-static-ip --static-ip-name zauru-mautic-static
+          
+          echo "Attaching static IP to instance..."
+          aws lightsail attach-static-ip \
+            --static-ip-name zauru-mautic-static \
+            --instance-name zauru-mautic
+        else
+          # Check if static IP is attached to our instance
+          ATTACHED_TO=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static --query 'staticIp.attachedTo' --output text)
+          
+          if [ "$ATTACHED_TO" != "zauru-mautic" ]; then
+            echo "Static IP exists but not attached to our instance. Attaching now..."
+            aws lightsail attach-static-ip \
+              --static-ip-name zauru-mautic-static \
+              --instance-name zauru-mautic
+          else
+            echo "Static IP already attached to instance zauru-mautic"
+          fi
+        fi
+
     - name: Get Instance IP
       run: |
-        echo "Getting instance IP address..."
-        IP=$(aws lightsail get-instance --instance-name zauru-mautic --query 'instance.publicIpAddress' --output text)
-        echo "Instance IP: $IP"
+        echo "Getting static IP address..."
+        IP=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static --query 'staticIp.ipAddress' --output text)
+        echo "Static IP: $IP"
         echo "ip=$IP" >> $GITHUB_ENV
 
     - name: Setup SSH access
@@ -136,12 +163,6 @@ jobs:
           echo "Attempt $i failed, waiting 10 seconds..."
           sleep 10
         done
-
-    - name: Get Static IP
-      run: |
-        IP=$(aws lightsail get-static-ip --static-ip-name zauru-mautic-static-ip --query 'staticIp.ipAddress' --output text)
-        echo "Static IP: $IP"
-        echo "ip=$IP" >> $GITHUB_ENV
 
     - name: Wait for server to be accessible
       run: |
