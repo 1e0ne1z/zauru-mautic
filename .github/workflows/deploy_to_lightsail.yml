@@ -233,10 +233,24 @@ jobs:
 
     - name: Download setup-dc.log from Server
       run: |
+        # Create .ssh directory with correct permissions
         mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        
+        # Save and set permissions for the key
         echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
         chmod 600 ~/.ssh/lightsail.pem
-        scp -o StrictHostKeyChecking=no -i ~/.ssh/lightsail.pem ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
+        
+        # Debug permissions
+        ls -la ~/.ssh/
+        
+        # Download the file
+        scp -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -i ~/.ssh/lightsail.pem \
+            ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
+        
+        # Clean up
         rm -f ~/.ssh/lightsail.pem
 
     - name: Upload setup-dc.log as Artifact
