@@ -276,10 +276,12 @@ jobs:
         ssh -o StrictHostKeyChecking=no \
             -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }} '
+              echo "Creating log directory..." && \
               sudo mkdir -p /var/log && \
               sudo chmod 777 /var/log && \
               sudo bash -c "/var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1" && \
-              sudo chmod 644 /var/log/setup-dc.log
+              sudo chmod 644 /var/log/setup-dc.log && \
+              echo "Permissions and logs set successfully"
             '
         
         
