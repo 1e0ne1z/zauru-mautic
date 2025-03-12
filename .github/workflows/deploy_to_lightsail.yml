@@ -220,10 +220,34 @@ jobs:
 
     - name: Deploy to Server
       run: |
+        # Check and create SSH directory if needed
+        if [ ! -d ~/.ssh ]; then
+          echo "Creating ~/.ssh directory..."
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+        else
+          echo "~/.ssh directory already exists"
+        fi
+        
+        # Check if key file already exists
+        if [ -f ~/.ssh/lightsail.pem ]; then
+          echo "Removing existing lightsail.pem..."
+          rm -f ~/.ssh/lightsail.pem
+        fi
+        
         # Save the key file
-        mkdir -p ~/.ssh
+        echo "Creating new lightsail.pem..."
         echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
         chmod 600 ~/.ssh/lightsail.pem
+        
+        # Verify key file
+        if [ ! -f ~/.ssh/lightsail.pem ]; then
+          echo "Error: Failed to create lightsail.pem"
+          exit 1
+        fi
+        
+        # Debug: Show permissions
+        ls -la ~/.ssh/lightsail.pem
         
         # Create remote directory and set permissions
         ssh -o StrictHostKeyChecking=no \
@@ -252,9 +276,7 @@ jobs:
             -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }} 'sudo /var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1'
         
-        # Clean up
-        rm -f ~/.ssh/lightsail.pem
-
+        
     - name: Open your Mautic instance
       run: |
         if [ -z "${DOMAIN}" ]; then
