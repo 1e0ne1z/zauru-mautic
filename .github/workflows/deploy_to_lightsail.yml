@@ -268,11 +268,7 @@ jobs:
             -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }} '
               echo "Setting permissions..." && \
-              sudo chown -R ubuntu:ubuntu /var/www && \
-              sudo find /var/www -type d -exec chmod 755 {} \; && \
-              sudo find /var/www -type f -exec chmod 644 {} \; && \
-              sudo chmod +x /var/www/setup-dc.sh && \
-              sudo chmod -R 777 /var/www/ && \
+              sudo chmod -R 770 /var/www/ && \
               echo "Permissions set successfully"
             '
         
