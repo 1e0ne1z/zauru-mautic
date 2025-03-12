@@ -76,15 +76,15 @@ jobs:
         version: 2
         verbose: false
 
-    - name: Setup SSH access
-      run: |
-        # Create SSH directory and save the PEM key
-        mkdir -p ~/.ssh
-        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
-        chmod 400 ~/.ssh/lightsail.pem
+    # - name: Setup SSH access
+    #   run: |
+    #     # Create SSH directory and save the PEM key
+    #     mkdir -p ~/.ssh
+    #     echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
+    #     chmod 400 ~/.ssh/lightsail.pem
         
-        # Debug: Verify the key file exists and has correct permissions
-        ls -la ~/.ssh/lightsail.pem
+    #     # Debug: Verify the key file exists and has correct permissions
+    #     ls -la ~/.ssh/lightsail.pem
 
     - name: Create Lightsail instance if it doesn't exist
       run: |
@@ -218,155 +218,4 @@ jobs:
         EMAIL_ADDRESS: ${{ vars.EMAIL_ADDRESS }}
         DOMAIN: ${{ vars.DOMAIN }}
 
-    - name: Deploy to Server
-      run: |
-        # Check and create SSH directory if needed
-        if [ ! -d ~/.ssh ]; then
-          echo "Creating ~/.ssh directory..."
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-        else
-          echo "~/.ssh directory already exists"
-        fi
-        
-        # Check if key file already exists
-        if [ -f ~/.ssh/lightsail.pem ]; then
-          echo "Removing existing lightsail.pem..."
-          rm -f ~/.ssh/lightsail.pem
-        fi
-        
-        # Save the key file
-        echo "Creating new lightsail.pem..."
-        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
-        chmod 600 ~/.ssh/lightsail.pem
-        
-        # Verify key file
-        if [ ! -f ~/.ssh/lightsail.pem ]; then
-          echo "Error: Failed to create lightsail.pem"
-          exit 1
-        fi
-        
-        # Debug: Show permissions
-        ls -la ~/.ssh/lightsail.pem
-        
-        # Create remote directory and set permissions
-        ssh -o StrictHostKeyChecking=no \
-            -i ~/.ssh/lightsail.pem \
-            ubuntu@${{ env.ip }} '
-              sudo mkdir -p /var/www && \
-              sudo mkdir -p /var/log && \
-              sudo chown -R ubuntu:ubuntu /var/www && \
-              sudo chown -R ubuntu:ubuntu /var/log
-            '
-        
-        # Sync files
-        rsync -av --progress \
-          -e "ssh -i ~/.ssh/lightsail.pem -o StrictHostKeyChecking=no" \
-          --exclude '.git' \
-          ./ ubuntu@${{ env.ip }}:/var/www/
-        
-        # Set permissions for everything
-        ssh -o StrictHostKeyChecking=no \
-            -i ~/.ssh/lightsail.pem \
-            ubuntu@${{ env.ip }} '
-              echo "Setting permissions..." && \
-              sudo chmod -R 770 /var/www/setup-dc.sh && \
-              echo "Permissions set successfully"
-            '
-        
-        # Run post-deploy script with proper permissions for logging
-        ssh -o StrictHostKeyChecking=no \
-            -i ~/.ssh/lightsail.pem \
-            ubuntu@${{ env.ip }} '
-              echo "exec setup-dc.sh and log to /var/log/setup-dc.log" && \
-              sudo bash -c "/var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1" && \
-              echo "Permissions and logs set successfully"
-            '
-        
-        
-    - name: Open your Mautic instance
-      run: |
-        if [ -z "${DOMAIN}" ]; then
-          echo "You can visit the Mautic installation at http://${{ env.ip }}:${{ env.MAUTIC_PORT }}"
-        else
-          echo "You can visit the Mautic installation at http://${DOMAIN}"
-        fi
-      env:
-        DOMAIN: ${{ vars.DOMAIN }}
-
-    - name: Download setup-dc.log from Server
-      run: |
-        # Create .ssh directory with correct permissions
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        
-        # Save and set permissions for the key
-        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
-        chmod 600 ~/.ssh/lightsail.pem
-        
-        # Debug permissions
-        ls -la ~/.ssh/
-        
-        # Download the file
-        scp -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            -i ~/.ssh/lightsail.pem \
-            ubuntu@${{ env.ip }}:/var/log/setup-dc.log ./setup-dc.log
-        
-        # Clean up
-        rm -f ~/.ssh/lightsail.pem
-
-    - name: Upload setup-dc.log as Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: setup-dc-log
-        path: ./setup-dc.log
-
-    - name: Check and configure HTTPS port
-      run: |
-        # Get current firewall rules
-        RULES=$(aws lightsail get-instance-port-states --instance-name zauru-mautic)
-        
-        # Check if port 443 is already open
-        if ! echo "$RULES" | grep -q '"fromPort": 443'; then
-          echo "Opening port 443 for HTTPS..."
-          aws lightsail open-instance-public-ports \
-            --instance-name zauru-mautic \
-            --port-info fromPort=443,toPort=443,protocol=TCP
-          echo "Port 443 opened successfully"
-        else
-          echo "Port 443 is already open"
-        fi
-
-        # Verify the rule was added
-        aws lightsail get-instance-port-states --instance-name zauru-mautic
-
-    - name: Debug SSH Connection
-      run: |
-        # Check if key exists and show permissions
-        echo "Checking SSH key..."
-        ls -la ~/.ssh/
-        
-        # Show public key derived from private key
-        echo "Generated public key from private key:"
-        ssh-keygen -y -f ~/.ssh/lightsail.pem || echo "Failed to read private key"
-        
-        # Get instance metadata to verify key
-        echo "Instance SSH key fingerprint from AWS:"
-        aws lightsail get-instance --instance-name zauru-mautic \
-          --query 'instance.sshKeyName' --output text
-        
-        # Try connection with maximum verbosity
-        echo "Attempting SSH connection with full debug..."
-        ssh -vvv -i ~/.ssh/lightsail.pem ubuntu@${{ env.ip }} 'echo "test"'
-
-    - name: Wait and Retry SSH Connection
-      run: |
-        echo "Waiting 30 seconds for instance to fully initialize..."
-        sleep 30
-        
-        # Try SSH connection again
-        ssh -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            -o ConnectTimeout=10 \
-            -i ~/.ssh/lightsail.pem ubuntu@${{ env.ip }} 'echo "SSH test"'
+    
