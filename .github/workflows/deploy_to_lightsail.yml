@@ -212,4 +212,15 @@ jobs:
         EMAIL_ADDRESS: ${{ vars.EMAIL_ADDRESS }}
         DOMAIN: ${{ vars.DOMAIN }}
 
-    
+     - name: Deploy to Server
+      uses: easingthemes/ssh-deploy@main
+      with:
+        SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+        ARGS: "-rlgoDzvc"
+        SOURCE: "."
+        REMOTE_HOST: ${{ env.ip }}
+        REMOTE_USER: ubuntu
+        TARGET: /var/www
+        EXCLUDE: ".git"
+        SCRIPT_BEFORE: mkdir -p /var/www
+        SCRIPT_AFTER: /var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1
