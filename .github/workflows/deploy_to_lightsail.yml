@@ -270,7 +270,7 @@ jobs:
             -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }} '
               echo "Setting permissions..." && \
-              sudo chmod -R 770 /var/www/ && \
+              sudo chmod -R 770 /var/www/setup-dc.sh && \
               echo "Permissions set successfully"
             '
         
@@ -278,7 +278,7 @@ jobs:
         ssh -o StrictHostKeyChecking=no \
             -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }} '
-              echo "moving setup-dc.sh to /var/www/setup-dc.sh" && \
+              echo "exec setup-dc.sh and log to /var/log/setup-dc.log" && \
               sudo bash -c "/var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1" && \
               echo "Permissions and logs set successfully"
             '
