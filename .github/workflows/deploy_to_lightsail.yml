@@ -263,12 +263,18 @@ jobs:
           --exclude '.git' \
           ./ ubuntu@${{ env.ip }}:/var/www/
         
-        # Set permissions after sync
+        # Set permissions for everything
         ssh -o StrictHostKeyChecking=no \
             -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }} '
-              sudo chown -R www-data:www-data /var/www && \
-              sudo chmod -R 775 /var/www
+              echo "Setting permissions..." && \
+              sudo chown -R ubuntu:ubuntu /var/www && \
+              sudo find /var/www -type d -exec chmod 755 {} \; && \
+              sudo find /var/www -type f -exec chmod 644 {} \; && \
+              sudo chmod +x /var/www/setup-dc.sh && \
+              sudo chmod -R 777 /var/www/storage && \
+              sudo chmod -R 777 /var/www/logs && \
+              echo "Permissions set successfully"
             '
         
         # Run post-deploy script
