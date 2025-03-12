@@ -92,9 +92,6 @@ jobs:
         echo "Available Docker blueprints:"
         INSTANCE_EXISTS=$(aws lightsail get-instance --instance-name zauru-mautic 2>/dev/null || echo "false")
         if [ "$INSTANCE_EXISTS" = "false" ]; then
-          # Get the default key pair name
-          DEFAULT_KEY_NAME=$(aws lightsail get-default-key-pair --query 'keyPair.name' --output text)
-          echo "Using default key pair: $DEFAULT_KEY_NAME"
           
           echo "Creating new Lightsail instance..."
           aws lightsail create-instances \
@@ -102,7 +99,8 @@ jobs:
             --availability-zone us-east-1a \
             --blueprint-id ubuntu_24_04 \
             --bundle-id small_2_0 \
-            --key-pair-name $DEFAULT_KEY_NAME
+            --key-pair-name zauru \
+            --user-data file://setup-vps.sh
           
           echo "Waiting for instance to be ready..."
           while : ; do
@@ -113,7 +111,7 @@ jobs:
               
               # Download default SSH key
               echo "Downloading default SSH key..."
-              aws lightsail download-default-key-pair --output text > lightsail.pem
+              echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > lightsail.pem
               chmod 600 lightsail.pem
               
               break
