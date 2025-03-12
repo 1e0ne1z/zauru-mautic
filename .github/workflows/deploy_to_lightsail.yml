@@ -219,17 +219,41 @@ jobs:
         DOMAIN: ${{ vars.DOMAIN }}
 
     - name: Deploy to Server
-      uses: easingthemes/ssh-deploy@main
-      with:
-        SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
-        ARGS: "-rlgoDzvc"
-        SOURCE: "."
-        REMOTE_HOST: ${{ env.ip }}
-        REMOTE_USER: ubuntu
-        TARGET: /var/www
-        EXCLUDE: ".git"
-        SCRIPT_BEFORE: mkdir -p /var/www
-        SCRIPT_AFTER: /var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1
+      run: |
+        # Save the key file
+        mkdir -p ~/.ssh
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
+        chmod 600 ~/.ssh/lightsail.pem
+        
+        # Create remote directory and set permissions
+        ssh -o StrictHostKeyChecking=no \
+            -i ~/.ssh/lightsail.pem \
+            ubuntu@${{ env.ip }} '
+              sudo mkdir -p /var/www && \
+              sudo chown -R ubuntu:ubuntu /var/www
+            '
+        
+        # Sync files
+        rsync -av --progress \
+          -e "ssh -i ~/.ssh/lightsail.pem -o StrictHostKeyChecking=no" \
+          --exclude '.git' \
+          ./ ubuntu@${{ env.ip }}:/var/www/
+        
+        # Set permissions after sync
+        ssh -o StrictHostKeyChecking=no \
+            -i ~/.ssh/lightsail.pem \
+            ubuntu@${{ env.ip }} '
+              sudo chown -R www-data:www-data /var/www && \
+              sudo chmod -R 775 /var/www
+            '
+        
+        # Run post-deploy script
+        ssh -o StrictHostKeyChecking=no \
+            -i ~/.ssh/lightsail.pem \
+            ubuntu@${{ env.ip }} 'sudo /var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1'
+        
+        # Clean up
+        rm -f ~/.ssh/lightsail.pem
 
     - name: Open your Mautic instance
       run: |
