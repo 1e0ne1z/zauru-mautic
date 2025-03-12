@@ -272,8 +272,7 @@ jobs:
               sudo find /var/www -type d -exec chmod 755 {} \; && \
               sudo find /var/www -type f -exec chmod 644 {} \; && \
               sudo chmod +x /var/www/setup-dc.sh && \
-              sudo chmod -R 777 /var/www/storage && \
-              sudo chmod -R 777 /var/www/logs && \
+              sudo chmod -R 777 /var/www/ && \
               echo "Permissions set successfully"
             '
         
