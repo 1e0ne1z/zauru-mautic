@@ -238,7 +238,7 @@ jobs:
           sudo chmod +x /var/www/setup-dc.sh && \
           sudo bash -c "/var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1"
 
-     - name: Open your Mautic instance
+    - name: Open your Mautic instance
       run: |
         if [ -z "${DOMAIN}" ]; then
           echo "You can visit the Mautic installation at http://${{ env.ip }}:${{ env.MAUTIC_PORT }}"
