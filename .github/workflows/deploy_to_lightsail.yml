@@ -272,10 +272,15 @@ jobs:
               echo "Permissions set successfully"
             '
         
-        # Run post-deploy script
+        # Run post-deploy script with proper permissions for logging
         ssh -o StrictHostKeyChecking=no \
             -i ~/.ssh/lightsail.pem \
-            ubuntu@${{ env.ip }} 'sudo /var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1'
+            ubuntu@${{ env.ip }} '
+              sudo mkdir -p /var/log && \
+              sudo chmod 777 /var/log && \
+              sudo bash -c "/var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1" && \
+              sudo chmod 644 /var/log/setup-dc.log
+            '
         
         
     - name: Open your Mautic instance
