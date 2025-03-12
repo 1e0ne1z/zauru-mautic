@@ -108,12 +108,6 @@ jobs:
             echo "Instance status: $STATUS"
             if [ "$STATUS" = "running" ]; then
               echo "Instance is now running"
-              
-              # Download default SSH key
-              echo "Downloading default SSH key..."
-              echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > lightsail.pem
-              chmod 600 lightsail.pem
-              
               break
             fi
             sleep 10
