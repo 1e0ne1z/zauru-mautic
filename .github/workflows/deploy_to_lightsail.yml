@@ -254,7 +254,9 @@ jobs:
             -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }} '
               sudo mkdir -p /var/www && \
-              sudo chown -R ubuntu:ubuntu /var/www
+              sudo mkdir -p /var/log && \
+              sudo chown -R ubuntu:ubuntu /var/www && \
+              sudo chown -R ubuntu:ubuntu /var/log
             '
         
         # Sync files
@@ -276,11 +278,8 @@ jobs:
         ssh -o StrictHostKeyChecking=no \
             -i ~/.ssh/lightsail.pem \
             ubuntu@${{ env.ip }} '
-              echo "Creating log directory..." && \
-              sudo mkdir -p /var/log && \
-              sudo chmod 777 /var/log && \
+              echo "moving setup-dc.sh to /var/www/setup-dc.sh" && \
               sudo bash -c "/var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1" && \
-              sudo chmod 644 /var/log/setup-dc.log && \
               echo "Permissions and logs set successfully"
             '
         
