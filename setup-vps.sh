@@ -10,3 +10,6 @@ sudo apt-get install -y docker.io docker-compose
 
 # Install Git
 sudo apt-get install -y git
+
+sudo groupadd docker
+sudo usermod -aG docker $USER

@@ -76,16 +76,6 @@ jobs:
         version: 2
         verbose: false
 
-    # - name: Setup SSH access
-    #   run: |
-    #     # Create SSH directory and save the PEM key
-    #     mkdir -p ~/.ssh
-    #     echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail.pem
-    #     chmod 400 ~/.ssh/lightsail.pem
-        
-    #     # Debug: Verify the key file exists and has correct permissions
-    #     ls -la ~/.ssh/lightsail.pem
-
     - name: Create Lightsail instance if it doesn't exist
       run: |
         # List available blueprints for verification
@@ -154,11 +144,13 @@ jobs:
       run: |
         echo "Waiting for SSH to be available..."
         echo "Attempting to connect to ${{ env.ip }}"
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > lightsail.pem
+        chmod 600 lightsail.pem
         for i in {1..6}; do
           if ssh -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=/dev/null \
              -o ConnectTimeout=10 \
-             -i ~/.ssh/lightsail.pem ubuntu@${{ env.ip }} 'echo "SSH test"'; then
+             -i lightsail.pem ubuntu@${{ env.ip }} 'echo "SSH test"'; then
             echo "SSH connection successful"
             break
           fi
