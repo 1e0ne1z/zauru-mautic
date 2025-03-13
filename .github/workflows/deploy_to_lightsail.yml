@@ -216,6 +216,7 @@ jobs:
             ubuntu@${{ env.ip }} '
               sudo rm -rf /var/www/* && \
               sudo mkdir -p /var/www && \
+              sudo chown -R ubuntu:ubuntu /var/www && \
               sudo chmod -R 775 /var/www
             '
 
@@ -231,6 +232,9 @@ jobs:
         EXCLUDE: ".git"
         SCRIPT_BEFORE: ""  # We already created the directory
         SCRIPT_AFTER: |
+          sudo chown -R www-data:www-data /var/www && \
+          sudo find /var/www -type d -exec chmod 755 {} \; && \
+          sudo find /var/www -type f -exec chmod 644 {} \; && \
           sudo chmod +x /var/www/setup-dc.sh && \
           sudo bash -c "/var/www/setup-dc.sh > /var/log/setup-dc.log 2>&1"
 
