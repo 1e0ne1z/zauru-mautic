@@ -1,15 +1,18 @@
 #!/bin/bash
 
-# Install Nginx
+# Install apt-utils first
 sudo apt-get update
-sudo apt-get install -y nginx certbot python3-certbot-nginx vim nano
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils
+
+# Install Nginx
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nginx certbot python3-certbot-nginx vim nano
 
 # Install Docker
 sudo apt-get update
-sudo apt-get install -y docker.io docker-compose
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose
 
 # Install Git
-sudo apt-get install -y git
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git
 
 # Add ubuntu user to docker group
 sudo usermod -aG docker ubuntu
