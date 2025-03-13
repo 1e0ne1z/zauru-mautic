@@ -1,5 +1,5 @@
 cd /var/www
-docker compose build
+# docker compose build
 docker compose up -d db --wait && docker compose up -d mautic_web --wait
 
 echo "## Wait for basic-mautic_web-1 container to be fully running"
@@ -38,7 +38,7 @@ if [[ "$DOMAIN" == *"DOMAIN_NAME"* ]]; then
     exit 0
 fi
 
-DROPLET_IP=$(curl -s http://icanhazip.com)
+DROPLET_IP=$(curl -s http://ipv4.icanhazip.com)
 
 echo "## Checking if $DOMAIN points to this DO droplet..."
 DOMAIN_IP=$(dig +short $DOMAIN)
